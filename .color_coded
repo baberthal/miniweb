@@ -1,0 +1,9 @@
+-fcolor-diagnostics
+-x
+c
+-DDEBUG
+-I/Users/morgan/projects/c_family/miniweb/src
+-I/Users/morgan/projects/c_family/miniweb/build/src
+-Wall
+-Wextra
+-std=c99

@@ -1,0 +1,28 @@
+#ifndef MINIWEB_CONFIG_H
+#define MINIWEB_CONFIG_H
+
+#cmakedefine01 HAVE_STDBOOL_H
+#cmakedefine01 HAVE_BLOCK_H
+#cmakedefine01 HAVE_ASSERT_H
+#cmakedefine01 HAVE_STRING_H
+#cmakedefine01 HAVE_STDLIB_H
+#cmakedefine01 HAVE_UNISTD_H
+#cmakedefine01 HAVE___BUILTIN_EXPECT
+#cmakedefine01 HAVE___ATTRIBUTE__
+#cmakedefine01 HAVE_BLOCKS_RUNTIME
+
+#ifdef __cplusplus
+#define ___BEGIN_DECLS extern "C" {
+#define ___END_DECLS }
+#else
+#define ___BEGIN_DECLS
+#define ___END_DECLS
+#endif
+
+#if HAVE___ATTRIBUTE__
+#define PRINTF_STYLE(X, Y) __attribute__((format(printf, (X), (Y))))
+#else
+#define PRINTF_STYLE(X, Y)
+#endif /* HAVE___ATTRIBUTE__ */
+
+#endif /* ifndef MINIWEB_CONFIG_H*/
