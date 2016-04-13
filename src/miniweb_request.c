@@ -384,6 +384,81 @@ void mw_read_filedata(mw_request *req, size_t avail)
     }
 }
 
-void mw_read_req(mw_request *req, size_t avail);
+void mw_read_req(mw_request *req, size_t avail)
+{
+    if (req->timeo.ds) {
+        mw_req_delete_source(req, &req->timeo);
+    }
 
-void mw_accept_cb(int fd);
+    // -1 to account for the trailing NULL byte
+    int s = (sizeof(req->cmd_buf) - (req->cb - req->cmd_buf)) - 1;
+    if (s == 0) {
+        qprintf("reqd req fd#%d command overflow\n", req->sd);
+        mw_close_connection(req);
+        return;
+    }
+
+    int rd = read(req->sd, req->cb, s);
+    if (rd > 0) {
+        req->cb += rd;
+
+        if (req->cb > req->cmd_buf + 4) {
+            int i;
+            for (i = -4; i != 0; i++) {
+                char ch = *(req->cb + i);
+                if (ch != '\n' && ch != '\r') {
+                    break;
+                }
+            }
+            if (i == 0) {
+                *(req->cb) = '\0';
+                assert(buf_outof_sz(&req->file_b) == 0);
+                assert(buf_outof_sx(&req->deflate_b) == 0);
+            }
+        }
+    }
+}
+
+void mw_accept_cb(int fd)
+{
+    static int req_num = 0;
+    mw_request *new_req = calloc(1, sizeof(mw_request));
+    assert(new_req);
+    new_req->cb = new_req->cmd_buf;
+    socklen_t r_len = sizeof(new_req->r_addr);
+    int s = accept(fd, (struct sockaddr *)&(new_req->r_addr), &r_len);
+    if (s < 0) {
+        qfprintf(stderr,
+                 "accept failure (rc = %d, errno=%d %s)\n",
+                 s,
+                 errno,
+                 strerror(errno));
+        return;
+    }
+
+    assert(s >= 0);
+    new_req->sd = s;
+    new_req->req_num = req_num;
+    asprintf(&(new_req->q_name), "req#%d s#%d", req_num++, s);
+    qprintf("accept_cb fd#%d; made: %s\n", fd, new_req->q_name);
+
+    // All further work for this request will happen on new_req->q, except the
+    // final teardown
+    new_req->q = dispatch_queue_create(new_req->q_name, NULL);
+    dispatch_set_context(new_req->q, new_req);
+    dispatch_set_finalizer_f(new_req->q, (dispatch_function_t)mw_req_free);
+
+    debug_reqs = reallocf(debug_reqs, sizeof(mw_request) * ++n_reqs);
+    debug_reqs[n_reqs - 1] = new_req;
+
+    new_req->sd_rd.ds = dispatch_source_create(DISPATCH_SOURCE_TYPE_READ,
+                                               new_req->sd,
+                                               0,
+                                               new_req->q);
+    dispatch_source_set_event_handler(new_req->sd_rd.ds, ^{
+        mw_read_req(new_req, dispatch_source_get_data(new_req->sd_rd.ds));
+    });
+
+    dispatch_release(new_req->q);
+    dispatch_resume(new_req->sd_rd.ds);
+}
