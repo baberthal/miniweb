@@ -384,7 +384,7 @@ void mw_read_filedata(mw_request *req, size_t avail)
     }
 }
 
-void mw_read_req(mw_request *req, size_t avail)
+void mw_read_req(mw_request *req, __unused size_t avail)
 {
     if (req->timeo.ds) {
         mw_req_delete_source(req, &req->timeo);
@@ -413,7 +413,7 @@ void mw_read_req(mw_request *req, size_t avail)
             if (i == 0) {
                 *(req->cb) = '\0';
                 assert(buf_outof_sz(&req->file_b) == 0);
-                assert(buf_outof_sx(&req->deflate_b) == 0);
+                assert(buf_outof_sz(&req->deflate_b) == 0);
             }
         }
     }
